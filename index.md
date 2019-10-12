@@ -1,7 +1,9 @@
-## Welcome to GitHub Pages
+# Rust + ARM + CLion
+This page is dedicated for people starting with embedded development in Rust. In later chapter I'll demonstrate the CLion integration.
 
-You can use the [editor on GitHub](https://github.com/krawacik3/krawacik3.github.io/edit/master/index.md) to maintain and preview the content for your website in Markdown files.
-
+## The requirements
+### Hardware
+****
 Whenever you commit to this repository, GitHub Pages will run [Jekyll](https://jekyllrb.com/) to rebuild the pages in your site, from the content in your Markdown files.
 
 ### Markdown
