@@ -6,4 +6,58 @@ The examples below were done on Linux machine. The target microcontroller is STM
 
 ## Software
 ### Compiler
-For now, I've been successful with only Nightly Rust. To install nightly, use 'rustup install nightly'.
+For now, I've been successful with only Nightly Rust. To install nightly, use 
+```bash
+rustup install nightly
+```
+Verify the rust version with 'rustc -V'. Try to stick to the newest version.
+
+### GDB
+To debug the processor you'll need to install the 'gdb-multiarch' tool, because bare GDB does not fully support ARM architecture.
+
+### OpenOCD
+OpenOCD is responsible for interfacing with On-chip debugger. It's sort of an middleman between GDB and target.
+OpenOCD needs configuration to run properly.
+For this, You'll need two configuration files: one for interface and one for target. [This repo](https://github.com/hikob/openocd/tree/master/tcl) supports most programmers and targets. In my example, corresponding files were used:
+'interface/stlink-v2.cfg'
+'target/stm32f1x.cfg'
+
+#### Config file for OpenOCD
+For convenience, You can create config file which will be loaded at startup of OpenOCD.
+openocd.cfg:
+```Bash
+set CHIPNAME stm32f1x
+source [find interface/stlink-v2.cfg]
+source [find target/stm32f1x.cfg]
+
+init
+arm semihosting enable
+```
+Starting at the top `set CHIPNAME stm32f1x` sets the variable CHIPNAME to the proper value (same as the target .cfg).
+`source [find interface/stlink-v2.cfg]` and `source [find target/stm32f1x.cfg]` are relative paths to your target and debugger files.
+'init' terminates the configuration stage and enters the run stage.
+'arm semihosting enable' enables the semihosting feature.
+
+Example of OpenOCD properly configured and connected to target:
+```console
+$ openocd -f openocd/openocd.cfg 
+Open On-Chip Debugger 0.10.0
+Licensed under GNU GPL v2
+For bug reports, read
+	http://openocd.org/doc/doxygen/bugs.html
+Info : auto-selecting first available session transport "hla_swd". To override use 'transport select <transport>'.
+Info : The selected transport took over low-level target control. The results might differ compared to plain JTAG/SWD
+adapter speed: 1000 kHz
+adapter_nsrst_delay: 100
+none separate
+Info : Unable to match requested speed 1000 kHz, using 950 kHz
+Info : Unable to match requested speed 1000 kHz, using 950 kHz
+Info : clock speed 950 kHz
+Info : STLINK v2 JTAG v17 API v2 SWIM v4 VID 0x0483 PID 0x3748
+Info : using stlink api v2
+Info : Target voltage: 3.235403
+Info : stm32f1x.cpu: hardware has 6 breakpoints, 4 watchpoints
+semihosting is enabled
+```
+
+# Basics of microcontroller booting process
