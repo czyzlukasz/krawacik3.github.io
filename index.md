@@ -35,7 +35,6 @@ source [find interface/stlink-v2.cfg]
 source [find target/stm32f1x.cfg]
 
 init
-arm semihosting enable
 ```
 Starting at the top `set CHIPNAME stm32f1x` sets the variable CHIPNAME to the proper value (same as the target .cfg).
 `source [find interface/stlink-v2.cfg]` and `source [find target/stm32f1x.cfg]` are relative paths to your target and debugger files.
@@ -69,4 +68,51 @@ Vectors are just simple functions that are called by hardware and/or software. T
 # Linker script
 Linker scripts can be really useful for embedded programming, because code can be split in multiple sections, and the memory address and location (RAM, FLASH, external cached/uncached RAM) can be chosen by the programmer.
 
+Small example of linker script can look like this:
+memory.x
+```
+MEMORY
+{
+  FLASH : ORIGIN = 0x08000000, LENGTH = 64K
+  RAM : ORIGIN = 0x20000000, LENGTH = 20K
+}
 
+ENTRY(Reset);
+EXTERN(RESET_VECTOR);
+SECTIONS
+{
+  . = 0x8000000;
+  .vector_table ORIGIN(FLASH) :
+  {
+    /*First, the stack pointer*/
+    LONG(ORIGIN(RAM) + LENGTH(RAM));
+    /*Then, the address of the reset vector*/
+    .vector_table.reset_vector;
+  } > FLASH
+
+  .text :
+  {
+
+  } > FLASH
+
+  .rodata :
+  {
+
+  } > RAM
+
+   .ARM.exidx :
+  {
+
+  } > RAM
+}
+```
+You can freely edit and modify this script and inspect the resulting binary to get hold of how linker works. Script is divided into two main items: `MEMORY` and `SECTIONS`. The `MEMORY` defines the physical layout of memory.
+```
+MEMORY
+{
+  FLASH : ORIGIN = 0x08000000, LENGTH = 64K
+  RAM : ORIGIN = 0x20000000, LENGTH = 20K
+}
+```
+This defines the FLASH and RAM memory regions, with its origins and sizes. If You use microcontroller with different memory size, You'll need to adjust these numbers according to the reference manual.
+*Reminder:* Do not forget about space before the colon, otherwise Your script will not work!
