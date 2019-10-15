@@ -172,7 +172,7 @@ pub unsafe extern "C" fn Reset() -> ! {
 ```
 This is the main part of the code. When device will enter the Reset process it will enter to Reset function which will initialize the peripherals and enter the main function. For now, I'll omit the initialization. Function `fn Reset() -> !` is returning 'nothing'; that is, compiler will expect the code to fall into infinite loop in this function.
 
-#Minimal working example
+# Minimal working example
 ```rust
 
 #![no_std]
@@ -212,3 +212,18 @@ fn panic(_panic: &PanicInfo) -> ! {
     loop {}
 }
 ```
+
+To compile the code, You'll need to invoke cargo command with specified target and pass the memory layout script to the linker.
+TODO: verify command
+```console
+cargo build target=thumbv7m-none-eabi -- -C link-arg= -Tmemory.x
+```
+Cargo can be configured with config file. You can create *.cargo/config* file with the arguments that will be passed during compile.
+```
+[build]
+target = "thumbv7m-none-eabi"
+
+[target.thumbv7m-none-eabi]
+rustflags = ["-C", "link-arg=-Tmemory.x"]
+```
+To pass the script to the linker cargo calls `-C` with `link-arg=-Tmemory.x` where `memory.x` is the name of the script. Note the capital T at the beginning of the name.
