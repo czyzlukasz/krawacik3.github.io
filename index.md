@@ -128,10 +128,15 @@ ItemToIncludeInThisSection;
 TODO: describe ORIGIN(FLASH) 
 The first item `. = ORIGIN(FLASH)` sets the current location in memory, see [this page](http://www.scoberlin.de/content/media/http/informatik/gcc_docs/ld_3.html) for more explanation.
 Let's translate this script to *human readable* form:
-	Create the section at the beginning of FLASH that contains:
-		Pointer to the end of the RAM section (as mentioned before, this is the start of stack)
-		Pointer to Reset vector
-	Then just after that load code into the flash.
-	Load .rodata (Read-only data) to the RAM.
-	Load the .ARM.exidx (this is the info for stack unwinding in case of the fault) into the RAM.
+1. Create the section at the beginning of FLASH that contains:
+ 1. Pointer to the end of the RAM section (as mentioned before, this is the start of stack)
+ 2. Pointer to Reset vector
+2. Then just after that load code into the flash.
+3. Load .rodata (Read-only data) to the RAM.
+4. Load the .ARM.exidx (this is the info for stack unwinding in case of the fault) into the RAM.
 
+# Putting it all together
+Now, with working connection to the microcontroller and with working environment, You can proceed to writing Rust code.
+```rust
+
+```
