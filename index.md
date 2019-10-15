@@ -81,7 +81,7 @@ ENTRY(Reset);
 EXTERN(RESET_VECTOR);
 SECTIONS
 {
-  . = 0x8000000;
+  . = ORIGIN(FLASH);
   .vector_table ORIGIN(FLASH) :
   {
     /*First, the stack pointer*/
@@ -115,4 +115,23 @@ MEMORY
 }
 ```
 This defines the FLASH and RAM memory regions, with its origins and sizes. If You use microcontroller with different memory size, You'll need to adjust these numbers according to the reference manual.
+
 *Reminder:* Do not forget about space before the colon, otherwise Your script will not work!
+Syntax of the `SECTIONS` item is as follows:
+```
+OutputSection :
+{
+ItemToIncludeInThisSection;
+ItemToIncludeInThisSection;
+} > MemoryRegion
+```
+TODO: describe ORIGIN(FLASH) 
+The first item `. = ORIGIN(FLASH)` sets the current location in memory, see [this page](http://www.scoberlin.de/content/media/http/informatik/gcc_docs/ld_3.html) for more explanation.
+Let's translate this script to *human readable* form:
+	Create the section at the beginning of FLASH that contains:
+		Pointer to the end of the RAM section (as mentioned before, this is the start of stack)
+		Pointer to Reset vector
+	Then just after that load code into the flash.
+	Load .rodata (Read-only data) to the RAM.
+	Load the .ARM.exidx (this is the info for stack unwinding in case of the fault) into the RAM.
+
