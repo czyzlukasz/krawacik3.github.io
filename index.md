@@ -137,6 +137,19 @@ Let's translate this script to *human readable* form:
 
 # Putting it all together
 Now, with working connection to the microcontroller and with working environment, You can proceed to writing Rust code.
+We need to start with some boilerplate code:
 ```rust
-
+#![no_std]
+#![no_main]
 ```
+This will inform compiler to not use the std library, because the binary will be deployed on bare system, without OS on which std depends on. The `no_main` stays that the code will not have an entry point named `main`.
+
+```rust
+use core::panic::PanicInfo;
+
+#[panic_handler]
+fn panic(_panic: &PanicInfo) -> ! {
+    loop {}
+}
+```
+Panic handler gets called when the system experiences the panic. This handler is useful, because developer can use it to print stack, execute 
