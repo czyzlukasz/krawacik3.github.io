@@ -11,6 +11,10 @@ For now, I've been successful with only Nightly Rust. To install nightly, use
 rustup install nightly
 ```
 Verify the rust version with 'rustc -V'. Try to stick to the newest version.
+Next, You'll need to add your target:
+```bash
+rustup target add thumbv7m-none-eabi
+```
 
 ### GDB
 To debug the processor you'll need to install the 'gdb-multiarch' tool, because bare GDB does not fully support ARM architecture.
@@ -35,8 +39,7 @@ arm semihosting enable
 ```
 Starting at the top `set CHIPNAME stm32f1x` sets the variable CHIPNAME to the proper value (same as the target .cfg).
 `source [find interface/stlink-v2.cfg]` and `source [find target/stm32f1x.cfg]` are relative paths to your target and debugger files.
-'init' terminates the configuration stage and enters the run stage.
-'arm semihosting enable' enables the semihosting feature.
+`init` terminates the configuration stage and enters the run stage.
 
 Example of OpenOCD properly configured and connected to target:
 ```console
@@ -57,7 +60,13 @@ Info : STLINK v2 JTAG v17 API v2 SWIM v4 VID 0x0483 PID 0x3748
 Info : using stlink api v2
 Info : Target voltage: 3.235403
 Info : stm32f1x.cpu: hardware has 6 breakpoints, 4 watchpoints
-semihosting is enabled
 ```
 
 # Basics of microcontroller booting process
+To properly run the program on your microcontroller, You'll need to understand how the boot sequence. For now, I'll omit most details. After reset, the Program Counter (PC) starts at 0x00000000.It loads the value at this memory location to Main Stack Pointer (MSP) thus, marking the beginning of stack. Stack, usually, starts at the highest address of RAM and grows down. Next memory region after MSP is dedcated to Vector Table. For now, only one vector is needed, the Reset Vector. It's located at location 0x00000004.
+Vectors are just simple functions that are called by hardware and/or software. The Reset Vector is called just after the reset or power on.
+
+# Linker script
+Linker scripts can be really useful for embedded programming, because code can be split in multiple sections, and the memory address and location (RAM, FLASH, external cached/uncached RAM) can be chosen by the programmer.
+
+
