@@ -152,4 +152,63 @@ fn panic(_panic: &PanicInfo) -> ! {
     loop {}
 }
 ```
-Panic handler gets called when the system experiences the panic. This handler is useful, because developer can use it to print stack, execute 
+Panic handler gets called when the system experiences the panic. This handler is useful, because developer can use it to print stack, execute cleanup task or reset the chip.
+
+```rust
+#[link_section = ".vector_table.reset_vector"]
+#[no_mangle]
+pub static RESET_VECTOR: unsafe extern "C" fn() -> ! = Reset;
+```
+This static variable `RESET_VECTOR` points to the Reset Vector (the function called Reset). It's wrapped in `unsafe extern "C"` because we want to use C ABI, because that is what microcontroller expects. The `no_mangle` attribute prevents from name mangling.
+
+```rust
+#[no_mangle]
+pub unsafe extern "C" fn Reset() -> ! {
+    //The reset vector is just entering the main function
+    main();
+    loop {
+    }
+}
+```
+This is the main part of the code. When device will enter the Reset process it will enter to Reset function which will initialize the peripherals and enter the main function. For now, I'll omit the initialization. Function `fn Reset() -> !` is returning 'nothing'; that is, compiler will expect the code to fall into infinite loop in this function.
+
+#Minimal working example
+```rust
+
+#![no_std]
+#![no_main]
+
+use core::panic::PanicInfo;
+
+
+fn main() {
+    loop {
+        let s = "I'm a main";
+        for letter in s.as_bytes() {
+            let _l = *letter;
+        }
+    }
+}
+
+
+//***Vectors***//
+#[no_mangle]
+pub unsafe extern "C" fn Reset() -> ! {
+    //The reset vector is just entering the main function
+    main();
+    loop {
+    }
+}
+
+//***Vector table***//
+#[link_section = ".vector_table.reset_vector"]
+#[no_mangle]
+pub static RESET_VECTOR: unsafe extern "C" fn() -> ! = Reset;
+
+
+
+#[panic_handler]
+fn panic(_panic: &PanicInfo) -> ! {
+    loop {}
+}
+```
