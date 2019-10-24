@@ -1,5 +1,5 @@
 # Deploying Rust code on ARM
-## This is still Work In Progress
+## This is still Work In Progress. If You want to add, fix and/or propose something, feel free to do it [here](https://github.com/krawacik3/krawacik3.github.io). I'm not a native English speaker and I'v made probably tens of linguistics mistakes on this page.
 This page is dedicated for people starting with embedded development in Rust. There are some tutorials on the internet touching this topic, but none of them goes deeply into the details of how and why it works.
 
 ## Tooling
@@ -12,7 +12,7 @@ For now, I've been successful with only Nightly Rust. To install nightly, use
 rustup install nightly
 ```
 Verify the rust version with 'rustc -V'. Try to stick to the newest version.
-Next, You'll need to add your target:
+Next, You'll need to add your target. If You want to use different target (Cortex-M4, Cortex-M4F), You'll have add Your target of choice). This is the target for Cortex-M3:
 ```bash
 rustup target add thumbv7m-none-eabi
 ```
@@ -63,7 +63,7 @@ Info : stm32f1x.cpu: hardware has 6 breakpoints, 4 watchpoints
 ```
 
 # Basics of microcontroller booting process
-To properly run the program on your microcontroller, You'll need to understand how the boot sequence. For now, I'll omit most details. After reset, the Program Counter (PC) starts at 0x00000000.It loads the value at this memory location to Main Stack Pointer (MSP) thus, marking the beginning of stack. Stack, usually, starts at the highest address of RAM and grows down. Next memory region after MSP is dedcated to Vector Table. For now, only one vector is needed, the Reset Vector. It's located at location 0x00000004.
+To properly run the program on your microcontroller, You'll need to understand how the boot sequence. For now, I'll omit most details. After reset, the Program Counter (PC) starts at 0x00000000.It loads the value at this memory location to Main Stack Pointer (MSP) thus, marking the beginning of stack. Stack, usually, starts at the highest address of RAM and grows down. Next memory region after MSP is dedcated to Vector Table. For now, only one vector is needed - the Reset Vector. It's located at location 0x00000004.
 Vectors are just simple functions that are called by hardware and/or software. The Reset Vector is called just after the reset or power on.
 
 # Linker script
@@ -79,16 +79,16 @@ MEMORY
 }
 
 ENTRY(Reset);
-EXTERN(RESET_VECTOR);
+EXTERN(VECTOR_TABLE);
+
 SECTIONS
 {
-  . = ORIGIN(FLASH);
   .vector_table ORIGIN(FLASH) :
   {
-    /*First, the stack pointer*/
+    /*Adress of the start of the stack*/
     LONG(ORIGIN(RAM) + LENGTH(RAM));
-    /*Then, the address of the reset vector*/
-    .vector_table.reset_vector;
+    /*Address of the reset vector*/
+    .vector_table;
   } > FLASH
 
   .text :
@@ -99,7 +99,7 @@ SECTIONS
   .rodata :
   {
 
-  } > RAM
+  } > FLASH
 
    .ARM.exidx :
   {
@@ -120,21 +120,22 @@ This defines the FLASH and RAM memory regions, with its origins and sizes. If Yo
 *Reminder:* Do not forget about space before the colon, otherwise Your script will not work!
 Syntax of the `SECTIONS` item is as follows:
 ```
-OutputSection :
+OutputSection MemoryLocation:
 {
 ItemToIncludeInThisSection;
 ItemToIncludeInThisSection;
 } > MemoryRegion
 ```
-TODO: describe ORIGIN(FLASH) 
-The first item `. = ORIGIN(FLASH)` sets the current location in memory, see [this page](http://www.scoberlin.de/content/media/http/informatik/gcc_docs/ld_3.html) for more explanation.
+See [this page](http://www.scoberlin.de/content/media/http/informatik/gcc_docs/ld_3.html) for more explanation.
+The first section, the `.vector_table` is located at `ORIGIN(FLASH)`. Beginning of FLASH of this particular microcontroller is mapped to memory region starting at 0x00000000, thus giving us an easy access to the Vector Table.
+
 Let's translate this script to *human readable* form:
 1. Create the section at the beginning of FLASH that contains:
- 1. Pointer to the end of the RAM section (as mentioned before, this is the start of stack)
- 2. Pointer to Reset vector
-2. Then just after that load code into the flash.
-3. Load .rodata (Read-only data) to the RAM.
-4. Load the .ARM.exidx (this is the info for stack unwinding in case of the fault) into the RAM.
+   1. Pointer to the end of the RAM section (as mentioned before, this is the start of stack)
+   2. Pointer to Reset vector
+2. Then just after that load code into the FLASH.
+3. Load .rodata (Read-only data) to the FLASH.
+4. Load the .ARM.exidx (this is the info for stack unwinding in case of a fault) into the RAM.
 
 # Putting it all together
 Now, with working connection to the microcontroller and with working environment, You can proceed to writing Rust code.
@@ -156,7 +157,7 @@ fn panic(_panic: &PanicInfo) -> ! {
 Panic handler gets called when the system experiences the panic. This handler is useful, because developer can use it to print stack, execute cleanup task or reset the chip.
 
 ```rust
-#[link_section = ".vector_table.reset_vector"]
+#[link_section = ".vector_table"]
 #[no_mangle]
 pub static RESET_VECTOR: unsafe extern "C" fn() -> ! = Reset;
 ```
@@ -171,13 +172,55 @@ pub unsafe extern "C" fn Reset() -> ! {
     }
 }
 ```
-This is the main part of the code. When device will enter the Reset process it will enter to Reset function which will initialize the peripherals and enter the main function. For now, I'll omit the initialization. Function `fn Reset() -> !` is returning 'nothing'; that is, compiler will expect the code to fall into infinite loop in this function.
+This is the main part of the code. When device will enter the Reset process it will enter to Reset function which will initialize the peripherals (if You want) and enter the main function. For now, I'll omit the initialization. Function `fn Reset() -> !` is returning 'nothing'; that is, compiler will expect the code to fall into infinite loop in this function.
+## Expanding the Vector Table
+For now, only Reset Vector has been implemented. What about other vectors? You can easily add them simply by creating a table that contains all the vectors (hence the name *Vector Table*). Notice that the table will contain vectors that should not be overwritten by a programmer - in that case You'll fill it with 0. For that case, union cames very usefull.
+```rust
+#[repr(C)]
+pub union Vector{
+    vector_handler: unsafe extern "C" fn() -> !,
+    unused_vector: u32
+}
+```
+`Vector` will hold any handler to the vector or a field filled with 0.
+For convinence, we'll add `impl` block:
+```rust
+impl Vector{
+    pub const fn handler(handler: unsafe extern "C" fn() -> !) -> Vector{
+        Vector{vector_handler: handler}
+    }
+    pub const fn unused() -> Vector{
+        Vector{unused_vector: 0}
+    }
+}
+```
+Now, we can replace our existing `vector_table` with an array of fourteen `Vector`s:
+```rust
+#[link_section = ".vector_table"]
+#[no_mangle]
+pub static VECTOR_TABLE: [Vector; 14] = [
+    Vector::handler(Reset),
+    Vector::unused(),
+    Vector::unused(),
+    Vector::unused(),
+    Vector::unused(),
+    Vector::unused(),
+    Vector::unused(),
+    Vector::unused(),
+    Vector::unused(),
+    Vector::unused(),
+    Vector::unused(),
+    Vector::unused(),
+    Vector::unused(),
+    Vector::unused(),
+];
+```
 
 # Minimal working example
 ```rust
-
 #![no_std]
 #![no_main]
+#![feature(const_fn)]
 
 use core::panic::PanicInfo;
 
@@ -201,12 +244,40 @@ pub unsafe extern "C" fn Reset() -> ! {
     }
 }
 
+#[repr(C)]
+pub union Vector{
+    vector_handler: unsafe extern "C" fn() -> !,
+    unused_vector: u32
+}
+
+impl Vector{
+    pub const fn handler(handler: unsafe extern "C" fn() -> !) -> Vector{
+        Vector{vector_handler: handler}
+    }
+    pub const fn unused() -> Vector{
+        Vector{unused_vector: 0}
+    }
+}
+
 //***Vector table***//
-#[link_section = ".vector_table.reset_vector"]
+#[link_section = ".vector_table"]
 #[no_mangle]
-pub static RESET_VECTOR: unsafe extern "C" fn() -> ! = Reset;
-
-
+pub static VECTOR_TABLE: [Vector; 14] = [
+    Vector::handler(Reset),
+    Vector::unused(),
+    Vector::unused(),
+    Vector::unused(),
+    Vector::unused(),
+    Vector::unused(),
+    Vector::unused(),
+    Vector::unused(),
+    Vector::unused(),
+    Vector::unused(),
+    Vector::unused(),
+    Vector::unused(),
+    Vector::unused(),
+    Vector::unused(),
+];
 
 #[panic_handler]
 fn panic(_panic: &PanicInfo) -> ! {
